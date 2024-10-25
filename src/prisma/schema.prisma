@@ -12,6 +12,7 @@ model User {
   fullname         String
   telegramUsername String @unique
   phone            String
+  telegramId       BigInt
 
   bookings Booking[]
 
@@ -24,5 +25,12 @@ model Booking {
   userId String @db.Uuid
   user   User   @relation(references: [id], fields: [userId], onDelete: Cascade, onUpdate: NoAction)
 
-  date DateTime
+  date   DateTime
+  status Status   @default(PENDING)
+}
+
+enum Status {
+  PENDING
+  COMPLETED
+  REJECTED
 }
