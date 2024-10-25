@@ -1,5 +1,6 @@
 const { config } = require('../../config');
 const { prisma } = require('../../utils/connection');
+const { getTashkentDateTime } = require('../../utils/dateUtils'); // Import getTashkentDateTime
 
 // Function to handle the admin login process
 const handleAdminLogin = async (ctx, userStates) => {
@@ -50,14 +51,14 @@ const handleAdminActions = async (ctx, userStates) => {
 const viewBookingsForDate = async (ctx, userStates) => {
     const message = ctx.message.text;
     const [day, month, year] = message.split('.');
-    const selectedDate = new Date(`${year}-${month}-${day}T00:00:00`);
+    const selectedDate = getTashkentDateTime(new Date(`${year}-${month}-${day}`)).startOf('day');
 
     // Fetch bookings for the selected date that are not COMPLETED
     const bookings = await prisma.booking.findMany({
         where: {
             date: {
-                gte: new Date(selectedDate),
-                lt: new Date(selectedDate.getTime() + 24 * 60 * 60 * 1000) // Get bookings within the same day
+                gte: selectedDate.toJSDate(),
+                lt: selectedDate.plus({ days: 1 }).toJSDate()  // Get bookings within the same day
             },
             status: { not: 'COMPLETED' } // Filter out COMPLETED bookings
         },
@@ -71,7 +72,7 @@ const viewBookingsForDate = async (ctx, userStates) => {
 
     // Create buttons for each booking
     const bookingButtons = bookings.map((booking) => {
-        const time = new Date(booking.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        const time = getTashkentDateTime(booking.date).toLocaleString(DateTime.TIME_SIMPLE);
         return [{ text: `Booking at ${time}`, callback_data: `manage_${booking.id}` }];
     });
 
@@ -95,8 +96,8 @@ const handleBookingManagement = async (ctx) => {
         include: { user: true }
     });
 
-    const time = new Date(booking.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-    const date = new Date(booking.date).toLocaleDateString('en-GB');
+    const time = getTashkentDateTime(booking.date).toLocaleString(DateTime.TIME_SIMPLE);
+    const date = getTashkentDateTime(booking.date).toLocaleString(DateTime.DATE_FULL);
 
     await ctx.reply(`Booking details:\nFull Name: ${booking.user.fullname}\nPhone Number: ${booking.user.phone}\nTelegram Username: @${booking.user.telegramUsername}\nDate: ${date}\nTime: ${time}\nStatus: ${booking.status}`, {
         reply_markup: {
@@ -124,7 +125,7 @@ const updateBookingStatus = async (ctx, action) => {
             return;
         }
 
-        const time = new Date(booking.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        const time = getTashkentDateTime(booking.date).toLocaleString(DateTime.TIME_SIMPLE);
 
         // If the action is "REJECT", notify the user and delete the booking
         if (action === 'reject') {
@@ -156,8 +157,5 @@ const updateBookingStatus = async (ctx, action) => {
         await ctx.reply('There was an error updating the booking status. Please try again.');
     }
 };
-
-
-
 
 module.exports = { handleAdminLogin, handleAdminCredentials, handleAdminActions, viewBookingsForDate, handleBookingManagement, updateBookingStatus };

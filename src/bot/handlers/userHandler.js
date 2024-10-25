@@ -1,4 +1,5 @@
 const { prisma } = require('../../utils/connection');
+const { getTashkentDateTime } = require('../../utils/dateUtils');
 
 // Handle the "/start" command
 const handleStartCommand = async (ctx, userStates) => {
@@ -26,7 +27,7 @@ const handleStartCommand = async (ctx, userStates) => {
         });
     } else {
         // Ask the user for their full name if they are new
-        await ctx.reply('to Doctor Booking Bot! Please enter your full name:');
+        await ctx.reply('Welcome to Doctor Booking Bot! Please enter your full name:');
         userStates[ctx.chat.id] = 'awaiting_fullname';
     }
 };
@@ -36,7 +37,7 @@ const handleFullNameInput = async (ctx, userStates) => {
     const fullName = ctx.message.text;
 
     // Store the full name in the user state and ask for the phone number next
-    userStates[ctx.chat.id] = { stage: 'awaiting_phone', fullName: fullName };
+    userStates[ctx.chat.id] = { stage: 'awaiting_phone', fullName };
 
     await ctx.reply(`Thank you, ${fullName}. Please enter your phone number:`);
 };
@@ -52,10 +53,10 @@ const handlePhoneInput = async (ctx, userStates) => {
         // Insert the new user into the database
         await prisma.user.create({
             data: {
-                telegramUsername: telegramUsername,
+                telegramUsername,
                 fullname: fullName,
-                phone: phone,
-                telegramId: telegramId  // Save the telegramId here
+                phone,
+                telegramId  // Save the telegramId here
             }
         });
 
@@ -70,7 +71,6 @@ const handlePhoneInput = async (ctx, userStates) => {
                     [{ text: 'View My Upcoming Bookings' }]
                 ],
                 resize_keyboard: true,
-                one_time_keyboard: true
             }
         });
     } catch (error) {
@@ -79,13 +79,12 @@ const handlePhoneInput = async (ctx, userStates) => {
     }
 };
 
-// Handle viewing user's bookings
 // Handle viewing user's bookings (filtering by future and non-completed bookings)
 const handleViewBookings = async (ctx) => {
     const telegramUsername = ctx.chat.username;
 
-    // Get the current date and time to compare for future bookings
-    const now = new Date();
+    // Get the current date and time in Tashkent timezone
+    const now = getTashkentDateTime();
 
     // Fetch user along with their future and non-completed bookings
     const user = await prisma.user.findUnique({
@@ -103,7 +102,7 @@ const handleViewBookings = async (ctx) => {
 
     if (user && user.bookings.length > 0) {
         const bookingButtons = user.bookings.map((booking) => {
-            const bookingDate = new Date(booking.date).toLocaleString('en-GB', {
+            const bookingDate = getTashkentDateTime(booking.date).toLocaleString('en-GB', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',
@@ -125,6 +124,5 @@ const handleViewBookings = async (ctx) => {
         await ctx.reply('You have no upcoming bookings.');
     }
 };
-
 
 module.exports = { handleStartCommand, handleFullNameInput, handlePhoneInput, handleViewBookings };

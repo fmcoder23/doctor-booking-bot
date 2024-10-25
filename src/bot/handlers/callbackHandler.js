@@ -49,7 +49,13 @@ const handleCallbackQuery = async (ctx, userStates) => {
         await handleBookingConfirmation(ctx, userStates);
     }
 
-    // Handle cancellation of booking
+    // Cancel a pending appointment action (without database interaction)
+    else if (callbackData === 'cancel_appointment') {
+        await ctx.reply('Appointment booking has been canceled.');
+        userStates[ctx.chat.id] = null; // Clear state without any database action
+    }
+
+    // Handle canceling a booking from "View My Upcoming Bookings"
     else if (callbackData.startsWith('cancel_')) {
         const bookingId = callbackData.split('_')[1];
 
@@ -63,16 +69,6 @@ const handleCallbackQuery = async (ctx, userStates) => {
         } catch (error) {
             console.error('Error canceling booking:', error);
             await ctx.reply('There was an error canceling your booking. Please try again.');
-            return; // Exit without proceeding further
-        }
-
-        // Update the inline buttons by removing the canceled booking
-        try {
-            if (ctx.callbackQuery.message.reply_markup && ctx.callbackQuery.message.reply_markup.inline_keyboard.length > 0) {
-                await ctx.editMessageReplyMarkup({ inline_keyboard: [] }); // Remove all inline buttons after cancellation
-            }
-        } catch (error) {
-            console.error("Error editing message markup after cancellation:", error);
         }
     }
 

@@ -37,7 +37,7 @@ bot.on('message:text', async (ctx) => {
             await viewBookingsForDate(ctx, userStates);
         }
     } else {
-        if (message === 'View My Bookings') {
+        if (message === 'View My Upcoming Bookings') {
             await handleViewBookings(ctx);
         } else if (message === 'Book an Appointment') {
             const dates = getUpcomingDates();

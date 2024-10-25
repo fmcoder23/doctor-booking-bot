@@ -1,4 +1,5 @@
 const { prisma } = require('../../utils/connection');
+const { getTashkentDateTime } = require('../../utils/dateUtils');
 
 const handleBookingConfirmation = async (ctx, userStates) => {
     const { date, time } = userStates[ctx.chat.id];
@@ -20,9 +21,10 @@ const handleBookingConfirmation = async (ctx, userStates) => {
         const [hour, minute] = time.split(':');
         const paddedTime = `${hour.padStart(2, '0')}:${minute}`;
 
-        // Create valid Date object
-        const appointmentDateTime = new Date(`${date}T${paddedTime}:00`);
-        if (isNaN(appointmentDateTime)) {
+        // Create a Tashkent DateTime object and convert to JS Date
+        const appointmentDateTime = getTashkentDateTime(new Date(`${date}T${paddedTime}:00`)).toJSDate();
+        
+        if (isNaN(appointmentDateTime.getTime())) {
             console.error('Invalid date or time:', appointmentDateTime);
             await ctx.reply('Invalid date or time. Please try again.');
             return;

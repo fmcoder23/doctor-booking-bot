@@ -1,12 +1,12 @@
-// notificationScheduler.js
 const cron = require('node-cron');
 const { prisma } = require('./connection');
-const { bot } = require('../bot/bot')
+const { bot } = require('../bot/bot');
+const { getTashkentDateTime } = require('./dateUtils');
 
 // Function to notify users about upcoming bookings
 const notifyUpcomingBookings = async () => {
-    const now = new Date();
-    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
+    const now = getTashkentDateTime();
+    const oneHourLater = getTashkentDateTime(now.getTime() + 60 * 60 * 1000); // 1 hour from now in Tashkent time
 
     // Find bookings starting within the next hour
     const upcomingBookings = await prisma.booking.findMany({
@@ -26,21 +26,21 @@ const notifyUpcomingBookings = async () => {
     for (const booking of upcomingBookings) {
         await bot.api.sendMessage(
             booking.user.telegramId,
-            `Reminder: Your booking is in one hour at ${new Date(booking.date).toLocaleTimeString('en-GB')}.`
+            `Reminder: Your booking is in one hour at ${getTashkentDateTime(booking.date).toLocaleTimeString('en-GB')}.`
         );
     }
 };
 
 // Function to notify users when their booking time arrives
 const notifyBookingTime = async () => {
-    const now = new Date();
+    const now = getTashkentDateTime();
 
-    // Find bookings that are starting now
+    // Find bookings that are starting now, with a 5-minute margin
     const currentBookings = await prisma.booking.findMany({
         where: {
             date: {
-                gte: new Date(now.getTime() - 5 * 60 * 1000), // Allow 5 min margin
-                lt: new Date(now.getTime() + 5 * 60 * 1000),
+                gte: getTashkentDateTime(now.getTime() - 5 * 60 * 1000), // 5 min before now
+                lt: getTashkentDateTime(now.getTime() + 5 * 60 * 1000), // 5 min after now
             },
             status: 'PENDING',
         },
@@ -52,12 +52,12 @@ const notifyBookingTime = async () => {
     for (const booking of currentBookings) {
         await bot.api.sendMessage(
             booking.user.telegramId,
-            `It's time for your booking at ${new Date(booking.date).toLocaleTimeString('en-GB')}.`
+            `It's time for your booking at ${getTashkentDateTime(booking.date).toLocaleTimeString('en-GB')}.`
         );
     }
 };
 
-// Schedule the tasks
+// Schedule the tasks to run every 5 minutes
 cron.schedule('*/5 * * * *', () => {
     notifyUpcomingBookings();
     notifyBookingTime();

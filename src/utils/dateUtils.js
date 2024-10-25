@@ -1,3 +1,10 @@
+const { DateTime } = require('luxon');
+
+const getTashkentDateTime = (date = new Date()) => {
+    return DateTime.fromJSDate(date, { zone: 'Asia/Tashkent' });
+};
+
+
 const getUpcomingDates = () => {
     const dates = [];
     const today = new Date();
@@ -17,7 +24,7 @@ const getAvailableSlots = async (date, prisma) => {
     const selectedDate = new Date(`${date}T00:00:00`);
 
     const isToday = selectedDate.toDateString() === today.toDateString();
-    
+
     const bookedSlots = await prisma.booking.findMany({
         where: {
             date: {
@@ -44,4 +51,4 @@ const getAvailableSlots = async (date, prisma) => {
     return availableSlots;
 };
 
-module.exports = { getUpcomingDates, getAvailableSlots };
+module.exports = { getUpcomingDates, getAvailableSlots, getTashkentDateTime };
