@@ -3,6 +3,7 @@ const { config } = require('../config');
 const { handleStartCommand, handleFullNameInput, handlePhoneInput, handleViewBookings } = require('./handlers/userHandler');
 const { handleAdminLogin, handleAdminCredentials, handleAdminActions, viewBookingsForDate, handleBookingManagement, updateBookingStatus } = require('./handlers/adminHandler');
 const { getUpcomingDates } = require('../utils/dateUtils');
+const { handleCallbackQuery } = require('./handlers/callbackHandler');
 
 require('../utils/notificationScheduler');
 
