@@ -4,6 +4,8 @@ const { handleStartCommand, handleFullNameInput, handlePhoneInput, handleViewBoo
 const { handleAdminLogin, handleAdminCredentials, handleAdminActions, viewBookingsForDate, handleBookingManagement, updateBookingStatus } = require('./handlers/adminHandler');
 const { getUpcomingDates } = require('../utils/dateUtils');
 
+require('../utils/notificationScheduler');
+
 const bot = new Bot(config.token);
 const userStates = {};
 
