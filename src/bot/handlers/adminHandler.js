@@ -27,7 +27,6 @@ const handleAdminCredentials = async (ctx, userStates) => {
                         [{ text: 'View All Bookings' }]
                     ],
                     resize_keyboard: true,
-                    one_time_keyboard: true
                 }
             });
             userStates[ctx.chat.id] = { stage: 'admin_logged_in' };

@@ -22,12 +22,11 @@ const handleStartCommand = async (ctx, userStates) => {
                     [{ text: 'View My Upcoming Bookings' }]
                 ],
                 resize_keyboard: true,
-                one_time_keyboard: true
             }
         });
     } else {
         // Ask the user for their full name if they are new
-        await ctx.reply('Welcome to Doctor Booking Bot! Please enter your full name:');
+        await ctx.reply('to Doctor Booking Bot! Please enter your full name:');
         userStates[ctx.chat.id] = 'awaiting_fullname';
     }
 };
