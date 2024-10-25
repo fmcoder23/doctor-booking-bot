@@ -1,0 +1,28 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fullname         String
+  telegramUsername String @unique
+  phone            String
+
+  bookings Booking[]
+
+  createdAt DateTime @default(now())
+}
+
+model Booking {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  userId String @db.Uuid
+  user   User   @relation(references: [id], fields: [userId], onDelete: Cascade, onUpdate: NoAction)
+
+  date DateTime
+}
