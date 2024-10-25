@@ -1,7 +1,7 @@
 // notificationScheduler.js
 const cron = require('node-cron');
-const { prisma } = require('./utils/connection');
-const { bot } = require('./bot'); // import the bot instance
+const { prisma } = require('./connection');
+const { bot } = require('../bot/bot')
 
 // Function to notify users about upcoming bookings
 const notifyUpcomingBookings = async () => {
