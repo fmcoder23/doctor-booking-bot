@@ -1,14 +1,13 @@
 const { config } = require('../../config');
 const { prisma } = require('../../utils/connection');
-const { getTashkentDateTime } = require('../../utils/dateUtils'); // Import getTashkentDateTime
+const { getTashkentDateTime } = require('../../utils/dateUtils');
 
-// Function to handle the admin login process
+// Handle admin login
 const handleAdminLogin = async (ctx, userStates) => {
     await ctx.reply("Please enter admin username:");
     userStates[ctx.chat.id] = { stage: 'awaiting_admin_username' };
 };
 
-// Function to check admin credentials (username and password)
 const handleAdminCredentials = async (ctx, userStates) => {
     const state = userStates[ctx.chat.id];
     const message = ctx.message.text;
@@ -37,7 +36,6 @@ const handleAdminCredentials = async (ctx, userStates) => {
     }
 };
 
-// Handle admin actions, like viewing all bookings
 const handleAdminActions = async (ctx, userStates) => {
     const message = ctx.message.text;
 
@@ -47,114 +45,103 @@ const handleAdminActions = async (ctx, userStates) => {
     }
 };
 
-// View bookings for a specific date provided by the admin
 const viewBookingsForDate = async (ctx, userStates) => {
     const message = ctx.message.text;
+
+    // Validate date format (DD.MM.YYYY)
+    if (!/^\d{2}\.\d{2}\.\d{4}$/.test(message)) {
+        await ctx.reply("Invalid date format. Please enter the date in DD.MM.YYYY format.");
+        return;
+    }
+
     const [day, month, year] = message.split('.');
     const selectedDate = getTashkentDateTime(new Date(`${year}-${month}-${day}`)).startOf('day');
 
-    // Fetch bookings for the selected date that are not COMPLETED
+    if (!selectedDate.isValid) {
+        await ctx.reply("Invalid date. Please try again.");
+        return;
+    }
+
     const bookings = await prisma.booking.findMany({
         where: {
             date: {
                 gte: selectedDate.toJSDate(),
-                lt: selectedDate.plus({ days: 1 }).toJSDate()  // Get bookings within the same day
+                lt: selectedDate.plus({ days: 1 }).toJSDate()
             },
-            status: { not: 'COMPLETED' } // Filter out COMPLETED bookings
+            status: { not: 'COMPLETED' }
         },
-        include: { user: true } // Include user information for displaying details
+        include: { user: true }
     });
 
     if (bookings.length === 0) {
         await ctx.reply('No bookings found for this date.');
+        userStates[ctx.chat.id] = { stage: 'admin_logged_in' }; // Return to admin menu
         return;
     }
 
-    // Create buttons for each booking
-    const bookingButtons = bookings.map((booking) => {
-        const time = getTashkentDateTime(booking.date).toFormat('HH:mm'); // Update to use Tashkent timezone
-        return [{ text: `Booking at ${time}`, callback_data: `manage_${booking.id}` }];
+    let bookingText = "Here are the bookings for the selected date:\n";
+    let keyboards = [];
+
+    bookings.forEach((booking, index) => {
+        const time = getTashkentDateTime(booking.date).toFormat('HH:mm');
+        bookingText += `${index + 1}. Booking at ${day}.${month}.${year} ${time} for ${booking.user.fullname} (${booking.user.phone})\n`;
+        keyboards.push(
+            [{ text: `Confirm ${index + 1}`, callback_data: `confirm_${index + 1}_${booking.id}` }],
+            [{ text: `Reject ${index + 1}`, callback_data: `reject_${index + 1}_${booking.id}` }]
+        );
     });
 
-    // Send booking options to the admin
-    await ctx.reply('Select a booking to manage:', {
+    await ctx.reply(bookingText, {
         reply_markup: {
-            inline_keyboard: bookingButtons
-        }
+            keyboard: keyboards,
+            resize_keyboard: true,
+            one_time_keyboard: true,
+        },
     });
-    userStates[ctx.chat.id] = { stage: 'managing_bookings' };
+
+    userStates[ctx.chat.id] = { stage: 'managing_bookings', bookings };
 };
 
-// Handle booking management (e.g., view details, complete, reject)
-const handleBookingManagement = async (ctx) => {
-    const callbackData = ctx.callbackQuery.data;
-    const bookingId = callbackData.split('_')[1];
 
-    const booking = await prisma.booking.findUnique({
-        where: { id: bookingId },
-        include: { user: true }
-    });
+const handleBookingManagement = async (ctx, userStates) => {
+    const message = ctx.message.text;
+    const [action, index] = message.split(" ");
+    const bookingIndex = parseInt(index) - 1;
+    const booking = userStates[ctx.chat.id]?.bookings[bookingIndex];
 
-    const time = getTashkentDateTime(booking.date).toFormat('HH:mm'); // Update to use Tashkent timezone
-    const date = getTashkentDateTime(booking.date).toFormat('dd.MM.yyyy');
-
-    await ctx.reply(`Booking details:\nFull Name: ${booking.user.fullname}\nPhone Number: ${booking.user.phone}\nTelegram Username: @${booking.user.telegramUsername}\nDate: ${date}\nTime: ${time}\nStatus: ${booking.status}`, {
-        reply_markup: {
-            inline_keyboard: [
-                [{ text: 'Complete', callback_data: `complete_${booking.id}` }],
-                [{ text: 'Reject', callback_data: `reject_${booking.id}` }]
-            ]
-        }
-    });
-};
-
-// Update booking status to either "COMPLETED" or "REJECTED"
-const updateBookingStatus = async (ctx, action) => {
-    const callbackData = ctx.callbackQuery.data;
-    const bookingId = callbackData.split('_')[1];
+    if (!booking) {
+        await ctx.reply("Booking not found or already processed.");
+        userStates[ctx.chat.id] = { stage: 'admin_logged_in' }; // Return to admin menu
+        return;
+    }
 
     try {
-        const booking = await prisma.booking.findUnique({
-            where: { id: bookingId },
-            include: { user: true }  // Include user to access telegramId
-        });
-
-        if (!booking) {
-            await ctx.reply('Booking not found.');
-            return;
-        }
-
-        const time = getTashkentDateTime(booking.date).toFormat('HH:mm'); // Update to use Tashkent timezone
-
-        // If the action is "REJECT", notify the user and delete the booking
-        if (action === 'reject') {
-            // Notify the user that the booking was rejected
-            await ctx.api.sendMessage(
-                booking.user.telegramId.toString(),  // Convert telegramId to string
-                `Your booking at ${time} has been rejected.`
-            );
-
-            // Delete the booking from the database
-            await prisma.booking.delete({
-                where: { id: bookingId }
-            });
-
-            await ctx.reply('Booking has been rejected and deleted.');
-        } else if (action === 'complete') {
-            // Mark the booking as completed
+        if (action === "Confirm") {
             await prisma.booking.update({
-                where: { id: bookingId },
+                where: { id: booking.id },
                 data: { status: 'COMPLETED' }
             });
-
-            await ctx.reply('Booking has been marked as COMPLETED.');
+            await ctx.reply(`Booking ${index} has been marked as COMPLETED.`);
+        } else if (action === "Reject") {
+            await prisma.booking.delete({ where: { id: booking.id } });
+            await ctx.reply(`Booking ${index} has been rejected and deleted.`);
         }
 
-        await ctx.answerCallbackQuery();
+        // After action, clear state and show admin options
+        await ctx.reply("Choose another action or type 'exit' to log out:", {
+            reply_markup: {
+                keyboard: [
+                    [{ text: 'View All Bookings' }],
+                    [{ text: 'Exit' }]
+                ],
+                resize_keyboard: true,
+            }
+        });
+        userStates[ctx.chat.id] = { stage: 'admin_logged_in' };
     } catch (error) {
-        console.error('Error updating booking status:', error);
-        await ctx.reply('There was an error updating the booking status. Please try again.');
+        console.error("Error processing booking action:", error);
+        await ctx.reply("There was an error processing this booking. Please try again.");
     }
 };
 
-module.exports = { handleAdminLogin, handleAdminCredentials, handleAdminActions, viewBookingsForDate, handleBookingManagement, updateBookingStatus };
+module.exports = { handleAdminLogin, handleAdminCredentials, handleAdminActions, viewBookingsForDate, handleBookingManagement };

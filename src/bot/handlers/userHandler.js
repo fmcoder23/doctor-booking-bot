@@ -5,17 +5,14 @@ const { getTashkentDateTime } = require('../../utils/dateUtils');
 const handleStartCommand = async (ctx, userStates) => {
     const telegramUsername = ctx.chat.username;
 
-    // If no username exists, alert the user
     if (!telegramUsername) {
-        await ctx.reply("You must have a Telegram username to use this bot. Please set a username in Telegram settings.");
+        await ctx.reply("You must have a Telegram username to use this bot.");
         return;
     }
 
-    // Find the user in the database by Telegram username
     const findUser = await prisma.user.findUnique({ where: { telegramUsername } });
 
     if (findUser) {
-        // If user already exists, show options
         await ctx.reply('Welcome back! Please choose an option:', {
             reply_markup: {
                 keyboard: [
@@ -26,7 +23,6 @@ const handleStartCommand = async (ctx, userStates) => {
             }
         });
     } else {
-        // Ask the user for their full name if they are new
         await ctx.reply('Welcome to Doctor Booking Bot! Please enter your full name:');
         userStates[ctx.chat.id] = 'awaiting_fullname';
     }
@@ -35,8 +31,6 @@ const handleStartCommand = async (ctx, userStates) => {
 // Handle user providing their full name (registration step)
 const handleFullNameInput = async (ctx, userStates) => {
     const fullName = ctx.message.text;
-
-    // Store the full name in the user state and ask for the phone number next
     userStates[ctx.chat.id] = { stage: 'awaiting_phone', fullName };
 
     await ctx.reply(`Thank you, ${fullName}. Please enter your phone number:`);
@@ -47,23 +41,20 @@ const handlePhoneInput = async (ctx, userStates) => {
     const phone = ctx.message.text;
     const { fullName } = userStates[ctx.chat.id];
     const telegramUsername = ctx.chat.username;
-    const telegramId = ctx.chat.id;  // This is the unique ID we need to save
+    const telegramId = ctx.chat.id;
 
     try {
-        // Insert the new user into the database
         await prisma.user.create({
             data: {
                 telegramUsername,
                 fullname: fullName,
                 phone,
-                telegramId  // Save the telegramId here
+                telegramId
             }
         });
 
-        // Clear the state after registration
         userStates[ctx.chat.id] = null;
 
-        // Acknowledge registration and offer booking options
         await ctx.reply(`Thank you, ${fullName}. You are now registered! Please choose an option:`, {
             reply_markup: {
                 keyboard: [
@@ -79,50 +70,78 @@ const handlePhoneInput = async (ctx, userStates) => {
     }
 };
 
-// Handle viewing user's bookings (filtering by future and non-completed bookings)
-const handleViewBookings = async (ctx) => {
+// Handle viewing user's bookings with cancellation options
+const handleViewBookings = async (ctx, userStates) => {
     const telegramUsername = ctx.chat.username;
-
-    // Get the current date and time in Tashkent timezone
     const now = getTashkentDateTime();
 
-    // Fetch user along with their future and non-completed bookings
     const user = await prisma.user.findUnique({
         where: { telegramUsername },
         include: {
             bookings: {
                 where: {
-                    date: { gte: now },  // Only future bookings
-                    status: { not: 'COMPLETED' }  // Exclude completed bookings
+                    date: { gte: now.toJSDate() },
+                    status: { not: 'COMPLETED' }
                 },
-                orderBy: { date: 'asc' }  // Sort bookings by date in ascending order
+                orderBy: { date: 'asc' }
             }
         }
     });
 
     if (user && user.bookings.length > 0) {
         const bookingButtons = user.bookings.map((booking) => {
-            const bookingDate = getTashkentDateTime(booking.date).toLocaleString('en-GB', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-            });
-            return [{
-                text: `Booking on ${bookingDate}`,
-                callback_data: `cancel_${booking.id}`,
-            }];
+            const bookingDate = getTashkentDateTime(booking.date).toFormat('dd.MM.yyyy HH:mm');
+            return [{ text: `Cancel ${bookingDate}`, bookingId: booking.id }];
         });
 
-        await ctx.reply('Here are your future bookings. Click to cancel:', {
+        await ctx.reply('Here are your upcoming bookings. Select a booking to cancel:', {
             reply_markup: {
-                inline_keyboard: bookingButtons,
+                keyboard: [...bookingButtons, [{ text: 'Start from Zero' }]],
+                resize_keyboard: true,
             },
         });
+
+        userStates[ctx.chat.id] = { stage: 'cancelling_booking', bookings: user.bookings };
     } else {
         await ctx.reply('You have no upcoming bookings.');
     }
 };
 
-module.exports = { handleStartCommand, handleFullNameInput, handlePhoneInput, handleViewBookings };
+// Process booking cancellation based on user's choice
+const handleBookingCancellation = async (ctx, userStates) => {
+    const message = ctx.message.text;
+    const userBookings = userStates[ctx.chat.id]?.bookings;
+
+    // Find the selected booking based on user's keyboard choice
+    const selectedBooking = userBookings?.find((booking) => {
+        const bookingDate = getTashkentDateTime(booking.date).toFormat('dd.MM.yyyy HH:mm');
+        return message.includes(`Cancel ${bookingDate}`);
+    });
+
+    if (selectedBooking) {
+        try {
+            await prisma.booking.delete({ where: { id: selectedBooking.id } });
+            await ctx.reply('Your booking has been successfully canceled.');
+
+            // Show the main action options again after cancellation
+            await ctx.reply('Please choose an option:', {
+                reply_markup: {
+                    keyboard: [
+                        [{ text: 'Book an Appointment' }],
+                        [{ text: 'View My Upcoming Bookings' }]
+                    ],
+                    resize_keyboard: true,
+                }
+            });
+
+            userStates[ctx.chat.id] = null; // Clear user state after cancellation
+        } catch (error) {
+            console.error('Error canceling booking:', error);
+            await ctx.reply('There was an error canceling your booking. Please try again.');
+        }
+    } else {
+        await ctx.reply('Could not find the selected booking. Please try again.');
+    }
+};
+
+module.exports = { handleStartCommand, handleFullNameInput, handlePhoneInput, handleViewBookings, handleBookingCancellation };

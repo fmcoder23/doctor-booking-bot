@@ -1,7 +1,8 @@
 const { prisma } = require('../../utils/connection');
-const { getAvailableSlots } = require('../../utils/dateUtils');
 const { handleBookingConfirmation } = require('./bookingHandler');
+const { getAvailableSlots } = require('../../utils/dateUtils');
 
+// Function to handle callback queries, now using a regular keyboard for confirmation
 const handleCallbackQuery = async (ctx, userStates) => {
     if (!ctx.callbackQuery || !ctx.callbackQuery.data) {
         console.error("Invalid callback query:", ctx);
@@ -10,18 +11,21 @@ const handleCallbackQuery = async (ctx, userStates) => {
 
     const callbackData = ctx.callbackQuery.data;
 
-    // Handle time selection and confirmation
+    // Handle time selection and prompt for confirmation
     if (callbackData.startsWith('time_')) {
         const selectedTime = callbackData.split('_')[1];
         const { date } = userStates[ctx.chat.id];
 
         await ctx.reply(`You have selected ${date} at ${selectedTime}. Confirm the appointment:`, {
             reply_markup: {
-                inline_keyboard: [
-                    [{ text: 'Confirm', callback_data: 'confirm_appointment' }],
-                    [{ text: 'Cancel', callback_data: 'cancel_appointment' }]
-                ]
-            }
+                keyboard: [
+                    [{ text: 'Confirm' }],
+                    [{ text: 'Cancel' }],
+                    [{ text: 'Start from Zero' }]
+                ],
+                resize_keyboard: true,
+                one_time_keyboard: true,
+            },
         });
         userStates[ctx.chat.id] = { stage: 'confirming', date, time: selectedTime };
     }
@@ -44,36 +48,54 @@ const handleCallbackQuery = async (ctx, userStates) => {
         }
     }
 
-    // Handle confirmation of booking
-    else if (callbackData === 'confirm_appointment') {
-        await handleBookingConfirmation(ctx, userStates);
-    }
-
-    // Cancel a pending appointment action (without database interaction)
-    else if (callbackData === 'cancel_appointment') {
-        await ctx.reply('Appointment booking has been canceled.');
-        userStates[ctx.chat.id] = null; // Clear state without any database action
-    }
-
-    // Handle canceling a booking from "View My Upcoming Bookings"
-    else if (callbackData.startsWith('cancel_')) {
-        const bookingId = callbackData.split('_')[1];
-
-        try {
-            // Delete the booking from the database
-            await prisma.booking.delete({
-                where: { id: bookingId },
-            });
-
-            await ctx.reply('Your booking has been successfully canceled.');
-        } catch (error) {
-            console.error('Error canceling booking:', error);
-            await ctx.reply('There was an error canceling your booking. Please try again.');
-        }
-    }
-
     // Answer the callback query to avoid timeouts
     await ctx.answerCallbackQuery();
 };
 
-module.exports = { handleCallbackQuery };
+const handleDateSelection = async (ctx, userStates, selectedDate) => {
+    const availableSlots = await getAvailableSlots(selectedDate, prisma);
+
+    if (availableSlots.length > 0) {
+        const slotButtons = availableSlots.map(slot => [{ text: slot }]);
+        await ctx.reply('Please choose an available time slot:', {
+            reply_markup: {
+                keyboard: [...slotButtons,
+                    [{ text: 'Start from Zero' }]],
+                
+                resize_keyboard: true,
+                one_time_keyboard: true,
+            },
+        });
+        userStates[ctx.chat.id] = { stage: 'awaiting_time', date: selectedDate };
+    } else {
+        await ctx.reply('No available slots for this date. Please choose another date.');
+    }
+};
+
+// Handle the time selection and confirm the appointment
+const handleTimeSelection = async (ctx, userStates, selectedTime) => {
+    const { date } = userStates[ctx.chat.id];
+
+    await ctx.reply(`You have selected ${date} at ${selectedTime}. Confirm the appointment:`, {
+        reply_markup: {
+            keyboard: [
+                [{ text: 'Confirm' }, { text: 'Cancel' }], [{ text: 'Start from Zero' }]
+            ],
+            resize_keyboard: true,
+            one_time_keyboard: true,
+        }
+    });
+    userStates[ctx.chat.id] = { stage: 'confirming', date, time: selectedTime };
+};
+
+// Confirm or cancel the appointment
+const handleConfirmation = async (ctx, userStates, message) => {
+    if (message === 'Confirm') {
+        await handleBookingConfirmation(ctx, userStates);
+    } else if (message === 'Cancel') {
+        await ctx.reply('Appointment booking has been canceled.');
+        userStates[ctx.chat.id] = null; // Clear state without any database action
+    }
+};
+
+module.exports = { handleCallbackQuery, handleDateSelection, handleConfirmation, handleTimeSelection };
