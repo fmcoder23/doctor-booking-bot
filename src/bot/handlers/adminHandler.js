@@ -72,7 +72,7 @@ const viewBookingsForDate = async (ctx, userStates) => {
 
     // Create buttons for each booking
     const bookingButtons = bookings.map((booking) => {
-        const time = getTashkentDateTime(booking.date).toLocaleString(DateTime.TIME_SIMPLE);
+        const time = getTashkentDateTime(booking.date).toFormat('HH:mm'); // Update to use Tashkent timezone
         return [{ text: `Booking at ${time}`, callback_data: `manage_${booking.id}` }];
     });
 
@@ -85,7 +85,6 @@ const viewBookingsForDate = async (ctx, userStates) => {
     userStates[ctx.chat.id] = { stage: 'managing_bookings' };
 };
 
-
 // Handle booking management (e.g., view details, complete, reject)
 const handleBookingManagement = async (ctx) => {
     const callbackData = ctx.callbackQuery.data;
@@ -96,8 +95,8 @@ const handleBookingManagement = async (ctx) => {
         include: { user: true }
     });
 
-    const time = getTashkentDateTime(booking.date).toLocaleString(DateTime.TIME_SIMPLE);
-    const date = getTashkentDateTime(booking.date).toLocaleString(DateTime.DATE_FULL);
+    const time = getTashkentDateTime(booking.date).toFormat('HH:mm'); // Update to use Tashkent timezone
+    const date = getTashkentDateTime(booking.date).toFormat('dd.MM.yyyy');
 
     await ctx.reply(`Booking details:\nFull Name: ${booking.user.fullname}\nPhone Number: ${booking.user.phone}\nTelegram Username: @${booking.user.telegramUsername}\nDate: ${date}\nTime: ${time}\nStatus: ${booking.status}`, {
         reply_markup: {
@@ -125,7 +124,7 @@ const updateBookingStatus = async (ctx, action) => {
             return;
         }
 
-        const time = getTashkentDateTime(booking.date).toLocaleString(DateTime.TIME_SIMPLE);
+        const time = getTashkentDateTime(booking.date).toFormat('HH:mm'); // Update to use Tashkent timezone
 
         // If the action is "REJECT", notify the user and delete the booking
         if (action === 'reject') {
