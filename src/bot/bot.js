@@ -33,7 +33,9 @@ const resetToMainActions = async (ctx, userStates) => {
 };
 
 // Start handling
-bot.command('start', (ctx) => resetToMainActions(ctx, userStates));
+// Start handling
+bot.command('start', (ctx) => handleStartCommand(ctx, userStates));
+
 
 // Admin handling
 bot.command('admin', (ctx) => handleAdminLogin(ctx, userStates));
