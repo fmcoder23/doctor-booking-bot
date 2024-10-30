@@ -1,7 +1,7 @@
 const cron = require('node-cron');
 const { prisma } = require('./connection');
-const { bot } = require('../bot/bot');
 const { getTashkentDateTime } = require('./dateUtils');
+const { bot } = require('../bot/bot');
 
 // Function to notify users about upcoming bookings
 const notifyUpcomingBookings = async () => {

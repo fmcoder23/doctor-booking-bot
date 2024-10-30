@@ -144,4 +144,27 @@ const handleBookingCancellation = async (ctx, userStates) => {
     }
 };
 
-module.exports = { handleStartCommand, handleFullNameInput, handlePhoneInput, handleViewBookings, handleBookingCancellation };
+const handleDateSelection = async (ctx, userStates, selectedDate) => {
+    const availableSlots = await getAvailableSlots(selectedDate, prisma);
+
+    if (availableSlots.length > 0) {
+        const slotButtons = availableSlots.map(slot => [{ text: slot }]);
+        await ctx.reply('Please choose an available time slot:', {
+            reply_markup: {
+                keyboard: [...slotButtons, [{ text: 'Start from Zero' }]],
+                resize_keyboard: true,
+                one_time_keyboard: true
+            }
+        });
+        userStates[ctx.chat.id] = { stage: 'awaiting_time', date: selectedDate };
+    } else {
+        await ctx.reply('No available slots for this date. Please choose another date.', {
+            reply_markup: {
+                keyboard: [[{ text: 'Start from Zero' }]],
+                resize_keyboard: true
+            }
+        });
+    }
+};
+
+module.exports = { handleStartCommand, handleFullNameInput, handlePhoneInput, handleViewBookings, handleBookingCancellation, handleDateSelection };

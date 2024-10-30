@@ -62,7 +62,11 @@ bot.on('message:text', async (ctx) => {
             } else {
                 await handleAdminActions(ctx, userStates);
             }
-        } else if (userState.stage === 'awaiting_booking_date') {
+        } else if (userState.stage === 'awaiting_admin_booking_date') {
+            // Admin booking date selection
+            await viewBookingsForDate(ctx, userStates);
+        } else if (userState.stage === 'awaiting_user_booking_date') {
+            // User booking date selection
             await handleDateSelection(ctx, userStates, message);
         } else if (userState.stage === 'awaiting_time') {
             await handleTimeSelection(ctx, userStates, message);
@@ -89,12 +93,9 @@ bot.on('message:text', async (ctx) => {
                     one_time_keyboard: true,
                 },
             });
-            userStates[ctx.chat.id] = { stage: 'awaiting_booking_date' };
+            userStates[ctx.chat.id] = { stage: 'awaiting_user_booking_date' }; // Use specific user booking stage
         }
     }
 });
-
-
-
 
 module.exports = { bot };

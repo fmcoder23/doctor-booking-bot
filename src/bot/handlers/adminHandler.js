@@ -24,7 +24,8 @@ const handleAdminCredentials = async (ctx, userStates) => {
             await ctx.reply("Welcome to the admin panel. Choose an action:", {
                 reply_markup: {
                     keyboard: [
-                        [{ text: 'View All Bookings' }]
+                        [{ text: 'View All Bookings' }],
+                        [{ text: 'Start from Zero' }]
                     ],
                     resize_keyboard: true,
                 }
@@ -40,8 +41,13 @@ const handleAdminActions = async (ctx, userStates) => {
     const message = ctx.message.text;
 
     if (message === 'View All Bookings') {
-        await ctx.reply("Please enter the date (DD.MM.YYYY):");
-        userStates[ctx.chat.id] = { stage: 'awaiting_booking_date' };
+        await ctx.reply("Please enter the date (DD.MM.YYYY):", {
+            reply_markup: {
+                keyboard: [[{ text: 'Start from Zero' }]],
+                resize_keyboard: true
+            }
+        });
+        userStates[ctx.chat.id] = { stage: 'awaiting_admin_booking_date' };
     }
 };
 
@@ -86,10 +92,13 @@ const viewBookingsForDate = async (ctx, userStates) => {
         const time = getTashkentDateTime(booking.date).toFormat('HH:mm');
         bookingText += `${index + 1}. Booking at ${day}.${month}.${year} ${time} for ${booking.user.fullname} (${booking.user.phone})\n`;
         keyboards.push(
-            [{ text: `Confirm ${index + 1}`, callback_data: `confirm_${index + 1}_${booking.id}` }],
-            [{ text: `Reject ${index + 1}`, callback_data: `reject_${index + 1}_${booking.id}` }]
+            [{ text: `Confirm ${index + 1}` }],
+            [{ text: `Reject ${index + 1}` }]
         );
     });
+
+    // Add "Start from Zero" button after all booking options
+    keyboards.push([{ text: 'Start from Zero' }]);
 
     await ctx.reply(bookingText, {
         reply_markup: {
@@ -101,7 +110,6 @@ const viewBookingsForDate = async (ctx, userStates) => {
 
     userStates[ctx.chat.id] = { stage: 'managing_bookings', bookings };
 };
-
 
 const handleBookingManagement = async (ctx, userStates) => {
     const message = ctx.message.text;
@@ -125,14 +133,21 @@ const handleBookingManagement = async (ctx, userStates) => {
         } else if (action === "Reject") {
             await prisma.booking.delete({ where: { id: booking.id } });
             await ctx.reply(`Booking ${index} has been rejected and deleted.`);
+
+            // Notify the user about the rejection, converting BigInt to string
+            await ctx.api.sendMessage(
+                String(booking.user.telegramId),  // Convert BigInt to string here
+                `Dear ${booking.user.fullname}, your booking on ${getTashkentDateTime(booking.date).toFormat('dd.MM.yyyy HH:mm')} has been rejected by the admin.`
+            );
         }
 
-        // After action, clear state and show admin options
+        // After action, show admin options with "Start from Zero" button
         await ctx.reply("Choose another action or type 'exit' to log out:", {
             reply_markup: {
                 keyboard: [
                     [{ text: 'View All Bookings' }],
-                    [{ text: 'Exit' }]
+                    [{ text: 'Exit' }],
+                    [{ text: 'Start from Zero' }]
                 ],
                 resize_keyboard: true,
             }
@@ -143,5 +158,6 @@ const handleBookingManagement = async (ctx, userStates) => {
         await ctx.reply("There was an error processing this booking. Please try again.");
     }
 };
+
 
 module.exports = { handleAdminLogin, handleAdminCredentials, handleAdminActions, viewBookingsForDate, handleBookingManagement };
