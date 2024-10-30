@@ -6,14 +6,14 @@ const handleBookingConfirmation = async (ctx, userStates) => {
     const { date, time } = userStates[ctx.chat.id];
     const telegramUsername = ctx.chat.username;
 
-    console.log('Booking date:', date);
-    console.log('Booking time:', time);
+    console.log('Bron qilish sanasi:', date);
+    console.log('Bron qilish vaqti:', time);
 
     try {
         const user = await prisma.user.findUnique({ where: { telegramUsername } });
 
         if (!user) {
-            await ctx.reply('Could not find your user information.');
+            await ctx.reply('Foydalanuvchi ma\'lumotlaringiz topilmadi.');
             return;
         }
 
@@ -22,16 +22,16 @@ const handleBookingConfirmation = async (ctx, userStates) => {
         const [hour, minute] = time.split(':');
 
         if (!parsedDate.isValid || isNaN(hour) || isNaN(minute)) {
-            console.error('Invalid date or time:', parsedDate, hour, minute);
-            await ctx.reply('Invalid date or time. Please try again.');
+            console.error('Noto‘g‘ri sana yoki vaqt:', parsedDate, hour, minute);
+            await ctx.reply('Noto‘g‘ri sana yoki vaqt. Qayta urinib ko‘ring.');
             return;
         }
 
         const appointmentDateTime = parsedDate.set({ hour: parseInt(hour), minute: parseInt(minute) });
 
         if (!appointmentDateTime.isValid) {
-            console.error('Invalid date or time:', appointmentDateTime);
-            await ctx.reply('Invalid date or time. Please try again.');
+            console.error('Noto‘g‘ri sana yoki vaqt:', appointmentDateTime);
+            await ctx.reply('Noto‘g‘ri sana yoki vaqt. Qayta urinib ko‘ring.');
             return;
         }
 
@@ -46,11 +46,11 @@ const handleBookingConfirmation = async (ctx, userStates) => {
             },
         });
 
-        await ctx.reply('Your appointment has been confirmed!', {
+        await ctx.reply('Sizning uchrashuv broningiz tasdiqlandi!', {
             reply_markup: {
                 keyboard: [
-                    [{ text: 'View My Upcoming Bookings' }],
-                    [{ text: 'Book an Appointment' }]
+                    [{ text: 'Kelgusi Uchrashuvlarimni Ko‘rish' }],
+                    [{ text: ' Uchrashuvni Bron Qilish' }]
                 ],
                 resize_keyboard: true,
             }
@@ -59,11 +59,10 @@ const handleBookingConfirmation = async (ctx, userStates) => {
         // Clear the user state after confirmation
         userStates[ctx.chat.id] = null;
     } catch (error) {
-        console.error('Error while booking appointment:', error);
-        await ctx.reply('An error occurred while booking the appointment. Please try again.');
+        console.error('Bron qilishda xatolik yuz berdi:', error);
+        await ctx.reply('Bron qilishda xatolik yuz berdi. Qayta urinib ko‘ring.');
     }
 };
-
 
 // Function to handle final confirmation and clear up the user state
 const handleFinalConfirmation = async (ctx, userStates) => {
@@ -79,7 +78,7 @@ const handleFinalConfirmation = async (ctx, userStates) => {
             new Date(year, month - 1, day, hour, minute)
         ).toJSDate();
 
-        if (ctx.message.text === 'Confirm Appointment') {
+        if (ctx.message.text === 'Uchrashuvni tasdiqlash') {
             try {
                 await prisma.booking.create({
                     data: {
@@ -89,24 +88,24 @@ const handleFinalConfirmation = async (ctx, userStates) => {
                 });
 
                 // Confirmed message
-                await ctx.reply('Your appointment has been confirmed!');
+                await ctx.reply('Sizning uchrashuv broningiz tasdiqlandi!');
 
                 // Show action keyboard after successful confirmation
-                await ctx.reply('Please choose an option:', {
+                await ctx.reply('Iltimos, biror amalni tanlang:', {
                     reply_markup: {
                         keyboard: [
-                            [{ text: 'View My Upcoming Bookings' }],
-                            [{ text: 'Book an Appointment' }]
+                            [{ text: 'Kelgusi Uchrashuvlarimni Ko‘rish' }],
+                            [{ text: 'Uchrashuvni Bron Qilish' }]
                         ],
                         resize_keyboard: true,
                     }
                 });
             } catch (error) {
-                console.error('Error while confirming appointment:', error);
-                await ctx.reply('There was an error confirming your appointment. Please try again later.');
+                console.error('Uchrashuvni tasdiqlashda xatolik yuz berdi:', error);
+                await ctx.reply('Uchrashuvni tasdiqlashda xatolik yuz berdi. Keyinroq qayta urinib ko‘ring.');
             }
-        } else if (ctx.message.text === 'Cancel Appointment') {
-            await ctx.reply('Appointment booking has been canceled.');
+        } else if (ctx.message.text === 'Uchrashuvni bekor qilish') {
+            await ctx.reply('Uchrashuv bron qilish bekor qilindi.');
         }
         
         // Clear the user state after handling

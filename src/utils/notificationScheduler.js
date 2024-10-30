@@ -3,16 +3,16 @@ const { prisma } = require('./connection');
 const { getTashkentDateTime } = require('./dateUtils');
 const { bot } = require('../bot/bot');
 
-// Utility to safely parse and handle BigInt telegram IDs
+// BigInt Telegram IDlarini xavfsiz qayta ishlash uchun yordamchi funksiya
 const sendNotification = async (telegramId, message) => {
     try {
-        await bot.api.sendMessage(String(telegramId), message); // Convert BigInt to string
+        await bot.api.sendMessage(String(telegramId), message); // BigInt'ni stringga aylantirish
     } catch (error) {
-        console.error("Error sending notification:", error);
+        console.error("Xabarnoma yuborishda xatolik:", error);
     }
 };
 
-// Function to notify users about upcoming bookings
+// Foydalanuvchilarga yaqinlashib kelayotgan bandliklar haqida xabarnoma yuborish
 const notifyUpcomingBookings = async () => {
     const now = getTashkentDateTime();
     const oneHourLater = now.plus({ hours: 1 });
@@ -33,12 +33,12 @@ const notifyUpcomingBookings = async () => {
     for (const booking of upcomingBookings) {
         await sendNotification(
             booking.user.telegramId,
-            `Reminder: Your booking is in one hour at ${getTashkentDateTime(booking.date).toFormat('HH:mm')}.`
+            `Eslatma: Sizning navbatingiz bir soatdan keyin soat ${getTashkentDateTime(booking.date).toFormat('HH:mm')} da boshlanadi.`
         );
     }
 };
 
-// Function to notify users when their booking time arrives
+// Foydalanuvchilarga bandlik vaqti kelganda xabarnoma yuborish
 const notifyBookingTime = async () => {
     const now = getTashkentDateTime();
 
@@ -58,12 +58,12 @@ const notifyBookingTime = async () => {
     for (const booking of currentBookings) {
         await sendNotification(
             booking.user.telegramId,
-            `It's time for your booking at ${getTashkentDateTime(booking.date).toFormat('HH:mm')}.`
+            `Sizning navbatingiz vaqti keldi: soat ${getTashkentDateTime(booking.date).toFormat('HH:mm')}.`
         );
     }
 };
 
-// Schedule the tasks to run every 5 minutes
+// Har 5 daqiqada vazifalarni bajarish uchun jadval tuzish
 cron.schedule('*/5 * * * *', () => {
     notifyUpcomingBookings();
     notifyBookingTime();

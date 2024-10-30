@@ -1,13 +1,13 @@
 const { DateTime } = require('luxon');
 
-// Function to get the current date and time in Tashkent time zone
+// Tashkent vaqt zonasida joriy sanani olish funksiyasi
 const getTashkentDateTime = (date = new Date()) => {
     let dateTime;
     if (typeof date === 'string') {
         dateTime = DateTime.fromFormat(date, 'yyyy-MM-dd', { zone: 'Asia/Tashkent' });
         if (!dateTime.isValid) {
-            console.error("Date string parsing failed:", date);
-            return DateTime.fromJSDate(new Date(), { zone: 'Asia/Tashkent' }); // Default to current date in Tashkent
+            console.error("Sana qatori o'qishda xatolik:", date);
+            return DateTime.fromJSDate(new Date(), { zone: 'Asia/Tashkent' }); // Tashkentdagi joriy sana
         }
     } else {
         dateTime = DateTime.fromJSDate(date, { zone: 'Asia/Tashkent' });
@@ -15,47 +15,47 @@ const getTashkentDateTime = (date = new Date()) => {
     return dateTime;
 };
 
-// Function to parse 'dd.MM.yyyy' formatted date strings
+// 'dd.MM.yyyy' formatidagi sanalarni parsing qilish funksiyasi
 const parseDate = (dateStr) => {
     const parsedDate = DateTime.fromFormat(dateStr, 'dd.MM.yyyy', { zone: 'Asia/Tashkent' });
     if (!parsedDate.isValid) {
-        console.error("Error parsing dateStr in parseDate:", dateStr);
+        console.error("parseDate funksiyasida sana o'qishda xatolik:", dateStr);
     }
     return parsedDate;
 };
 
-// Function to get upcoming dates in Tashkent time zone
+// Tashkent vaqt zonasida yaqin kelajakdagi sanalarni olish funksiyasi
 const getUpcomingDates = () => {
     const dates = [];
-    const today = getTashkentDateTime(); // Current date in Tashkent time
+    const today = getTashkentDateTime(); // Tashkentdagi joriy sana
     for (let i = 0; i < 5; i++) {
         const futureDate = today.plus({ days: i });
         dates.push({
             display: futureDate.toFormat('dd.MM.yyyy'),
-            value: futureDate.toFormat('yyyy-MM-dd') // Ensure value format is ISO
+            value: futureDate.toFormat('yyyy-MM-dd') // ISO formatiga moslashtirish
         });
     }
     return dates;
 };
 
-// Function to get available slots for a selected date in Tashkent time zone
+// Tashkent vaqt zonasida tanlangan sana uchun mavjud vaqt oralig‘ini olish funksiyasi
 const getAvailableSlots = async (date, prisma) => {
     const selectedDate = parseDate(date);
 
     if (!selectedDate.isValid) {
-        console.error("Invalid date input for available slots:", date);
-        throw new Error("Invalid date format. Please provide a valid date in 'dd.MM.yyyy' format.");
+        console.error("Mavjud vaqt oralig'i uchun noto‘g‘ri sana kiritildi:", date);
+        throw new Error("Noto‘g‘ri sana formati. Iltimos, 'dd.MM.yyyy' formatida sanani kiriting.");
     }
 
     const today = getTashkentDateTime();
-    const isToday = selectedDate.hasSame(today, 'day'); // Check if the selected date is today
+    const isToday = selectedDate.hasSame(today, 'day'); // Tanlangan sana bugun ekanligini tekshirish
 
-    // Get all booked slots on the selected date
+    // Tanlangan sana uchun band qilingan vaqt oralig'ini olish
     const bookedSlots = await prisma.booking.findMany({
         where: {
             date: {
                 gte: selectedDate.toJSDate(),
-                lt: selectedDate.plus({ days: 1 }).toJSDate() // Until the end of the selected day
+                lt: selectedDate.plus({ days: 1 }).toJSDate() // Tanlangan kun oxirigacha
             }
         },
         select: { date: true }

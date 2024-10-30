@@ -6,24 +6,24 @@ const handleStartCommand = async (ctx, userStates) => {
     const telegramUsername = ctx.chat.username;
 
     if (!telegramUsername) {
-        await ctx.reply("You must have a Telegram username to use this bot.");
+        await ctx.reply("Ushbu botdan foydalanish uchun Telegram foydalanuvchi nomingiz bo'lishi kerak.");
         return;
     }
 
     const findUser = await prisma.user.findUnique({ where: { telegramUsername } });
 
     if (findUser) {
-        await ctx.reply('Welcome back! Please choose an option:', {
+        await ctx.reply('Qaytganingizdan xursandmiz! Iltimos, tanlov qiling:', {
             reply_markup: {
                 keyboard: [
-                    [{ text: 'Book an Appointment' }],
-                    [{ text: 'View My Upcoming Bookings' }]
+                    [{ text: 'Uchrashuvni Bron Qilish' }],
+                    [{ text: 'Kelgusi Uchrashuvlarimni Ko‘rish' }]
                 ],
                 resize_keyboard: true,
             }
         });
     } else {
-        await ctx.reply('Welcome to Doctor Booking Bot! Please enter your full name:');
+        await ctx.reply('Doctor Booking Botiga xush kelibsiz! Iltimos, to‘liq ismingizni kiriting:');
         userStates[ctx.chat.id] = 'awaiting_fullname';
     }
 };
@@ -33,7 +33,7 @@ const handleFullNameInput = async (ctx, userStates) => {
     const fullName = ctx.message.text;
     userStates[ctx.chat.id] = { stage: 'awaiting_phone', fullName };
 
-    await ctx.reply(`Thank you, ${fullName}. Please enter your phone number:`);
+    await ctx.reply(`Rahmat, ${fullName}. Iltimos, telefon raqamingizni kiriting:`);
 };
 
 // Handle user providing their phone number (registration step)
@@ -55,18 +55,18 @@ const handlePhoneInput = async (ctx, userStates) => {
 
         userStates[ctx.chat.id] = null;
 
-        await ctx.reply(`Thank you, ${fullName}. You are now registered! Please choose an option:`, {
+        await ctx.reply(`Rahmat, ${fullName}. Siz muvaffaqiyatli ro‘yxatdan o‘tdingiz! Iltimos, tanlov qiling:`, {
             reply_markup: {
                 keyboard: [
-                    [{ text: 'Book an Appointment' }],
-                    [{ text: 'View My Upcoming Bookings' }]
+                    [{ text: 'Uchrashuvni Bron Qilish' }],
+                    [{ text: 'Kelgusi Uchrashuvlarimni Ko‘rish' }]
                 ],
                 resize_keyboard: true,
             }
         });
     } catch (error) {
-        console.error('Error saving user:', error);
-        await ctx.reply('There was an error during registration. Please try again.');
+        console.error('Foydalanuvchini saqlashda xatolik:', error);
+        await ctx.reply('Ro‘yxatdan o‘tishda xatolik yuz berdi. Iltimos, qayta urinib ko‘ring.');
     }
 };
 
@@ -91,19 +91,19 @@ const handleViewBookings = async (ctx, userStates) => {
     if (user && user.bookings.length > 0) {
         const bookingButtons = user.bookings.map((booking) => {
             const bookingDate = getTashkentDateTime(booking.date).toFormat('dd.MM.yyyy HH:mm');
-            return [{ text: `Cancel ${bookingDate}`, bookingId: booking.id }];
+            return [{ text: `Bekor qilish ${bookingDate}`, bookingId: booking.id }];
         });
 
-        await ctx.reply('Here are your upcoming bookings. Select a booking to cancel:', {
+        await ctx.reply('Bu yerda kelgusi uchrashuvlaringiz. Bekor qilish uchun birini tanlang:', {
             reply_markup: {
-                keyboard: [...bookingButtons, [{ text: 'Start from Zero' }]],
+                keyboard: [...bookingButtons, [{ text: 'Boshidan boshlash' }]],
                 resize_keyboard: true,
             },
         });
 
         userStates[ctx.chat.id] = { stage: 'cancelling_booking', bookings: user.bookings };
     } else {
-        await ctx.reply('You have no upcoming bookings.');
+        await ctx.reply('Sizda hech qanday kelgusi uchrashuvlar yo‘q.');
     }
 };
 
@@ -115,20 +115,20 @@ const handleBookingCancellation = async (ctx, userStates) => {
     // Find the selected booking based on user's keyboard choice
     const selectedBooking = userBookings?.find((booking) => {
         const bookingDate = getTashkentDateTime(booking.date).toFormat('dd.MM.yyyy HH:mm');
-        return message.includes(`Cancel ${bookingDate}`);
+        return message.includes(`Bekor qilish ${bookingDate}`);
     });
 
     if (selectedBooking) {
         try {
             await prisma.booking.delete({ where: { id: selectedBooking.id } });
-            await ctx.reply('Your booking has been successfully canceled.');
+            await ctx.reply('Uchrashuvingiz muvaffaqiyatli bekor qilindi.');
 
             // Show the main action options again after cancellation
-            await ctx.reply('Please choose an option:', {
+            await ctx.reply('Iltimos, tanlov qiling:', {
                 reply_markup: {
                     keyboard: [
-                        [{ text: 'Book an Appointment' }],
-                        [{ text: 'View My Upcoming Bookings' }]
+                        [{ text: 'Uchrashuvni Bron Qilish' }],
+                        [{ text: 'Kelgusi Uchrashuvlarimni Ko‘rish' }]
                     ],
                     resize_keyboard: true,
                 }
@@ -136,11 +136,11 @@ const handleBookingCancellation = async (ctx, userStates) => {
 
             userStates[ctx.chat.id] = null; // Clear user state after cancellation
         } catch (error) {
-            console.error('Error canceling booking:', error);
-            await ctx.reply('There was an error canceling your booking. Please try again.');
+            console.error('Uchrashuvni bekor qilishda xatolik:', error);
+            await ctx.reply('Uchrashuvni bekor qilishda xatolik yuz berdi. Iltimos, qayta urinib ko‘ring.');
         }
     } else {
-        await ctx.reply('Could not find the selected booking. Please try again.');
+        await ctx.reply('Tanlangan uchrashuv topilmadi. Iltimos, qayta urinib ko‘ring.');
     }
 };
 
@@ -149,18 +149,18 @@ const handleDateSelection = async (ctx, userStates, selectedDate) => {
 
     if (availableSlots.length > 0) {
         const slotButtons = availableSlots.map(slot => [{ text: slot }]);
-        await ctx.reply('Please choose an available time slot:', {
+        await ctx.reply('Iltimos, mavjud vaqtni tanlang:', {
             reply_markup: {
-                keyboard: [...slotButtons, [{ text: 'Start from Zero' }]],
+                keyboard: [...slotButtons, [{ text: 'Boshidan boshlash' }]],
                 resize_keyboard: true,
                 one_time_keyboard: true
             }
         });
         userStates[ctx.chat.id] = { stage: 'awaiting_time', date: selectedDate };
     } else {
-        await ctx.reply('No available slots for this date. Please choose another date.', {
+        await ctx.reply('Bu sana uchun mavjud vaqt yo‘q. Iltimos, boshqa sanani tanlang.', {
             reply_markup: {
-                keyboard: [[{ text: 'Start from Zero' }]],
+                keyboard: [[{ text: 'Boshidan boshlash' }]],
                 resize_keyboard: true
             }
         });

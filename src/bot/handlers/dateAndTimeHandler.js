@@ -8,16 +8,16 @@ const handleDateSelection = async (ctx, userStates, selectedDate) => {
 
     if (availableSlots.length > 0) {
         const slotButtons = availableSlots.map(slot => [{ text: slot }]);
-        await ctx.reply('Please choose an available time slot:', {
+        await ctx.reply('Iltimos, mavjud vaqtni tanlang:', {
             reply_markup: {
-                keyboard: [...slotButtons, [{ text: 'Start from Zero' }]],
+                keyboard: [...slotButtons, [{ text: 'Boshidan boshlash' }]],
                 resize_keyboard: true,
                 one_time_keyboard: true
             }
         });
         userStates[ctx.chat.id] = { stage: 'awaiting_time', date: selectedDate };
     } else {
-        await ctx.reply('No available slots for this date. Please choose another date.');
+        await ctx.reply('Tanlangan sana uchun mavjud vaqt yo‘q. Iltimos, boshqa sanani tanlang.');
     }
 };
 
@@ -25,10 +25,10 @@ const handleDateSelection = async (ctx, userStates, selectedDate) => {
 const handleTimeSelection = async (ctx, userStates, selectedTime) => {
     const { date } = userStates[ctx.chat.id];
 
-    await ctx.reply(`You have selected ${date} at ${selectedTime}. Confirm the appointment:`, {
+    await ctx.reply(`Siz ${date} kuni soat ${selectedTime} vaqtni tanladingiz. Uchrashuvni tasdiqlaysizmi:`, {
         reply_markup: {
             keyboard: [
-                [{ text: 'Confirm' }, { text: 'Cancel' }]
+                [{ text: 'Tasdiqlash' }, { text: 'Bekor qilish' }]
             ],
             resize_keyboard: true,
             one_time_keyboard: true
@@ -39,10 +39,10 @@ const handleTimeSelection = async (ctx, userStates, selectedTime) => {
 
 // Confirm or cancel the appointment
 const handleConfirmation = async (ctx, userStates, message) => {
-    if (message === 'Confirm') {
+    if (message === 'Tasdiqlash') {
         await handleBookingConfirmation(ctx, userStates);
-    } else if (message === 'Cancel') {
-        await ctx.reply('Appointment booking has been canceled.');
+    } else if (message === 'Bekor qilish') {
+        await ctx.reply('Uchrashuv bron qilish bekor qilindi.');
         userStates[ctx.chat.id] = null; // Clear state without any database action
     }
 };

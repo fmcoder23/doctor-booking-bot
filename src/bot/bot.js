@@ -12,19 +12,19 @@ const bot = new Bot(config.token);
 const userStates = {};
 
 bot.api.setMyCommands([
-    { command: 'start', description: 'Start the bot and register' },
-    { command: 'admin', description: 'Access the admin panel' },
+    { command: 'start', description: 'Botni ishga tushirish va ro‘yxatdan o‘tish' },
+    { command: 'admin', description: 'Admin paneliga kirish' },
 ]);
 
 const mainActionKeyboard = [
-    [{ text: 'Book an Appointment' }],
-    [{ text: 'View My Upcoming Bookings' }],
+    [{ text: 'Uchrashuvni Bron Qilish' }],
+    [{ text: 'Kelgusi Uchrashuvlarimni Ko‘rish' }],
 ];
 
 // Function to reset state and show main actions
 const resetToMainActions = async (ctx, userStates) => {
     userStates[ctx.chat.id] = null; // Clear any previous state
-    await ctx.reply("Please choose an option:", {
+    await ctx.reply("Iltimos, tanlov qiling:", {
         reply_markup: {
             keyboard: mainActionKeyboard,
             resize_keyboard: true,
@@ -43,7 +43,7 @@ bot.on('message:text', async (ctx) => {
     const message = ctx.message.text;
 
     // If "Start from Zero" is selected at any stage, reset to main actions
-    if (message === 'Start from Zero') {
+    if (message === 'Boshidan boshlash') {
         return await resetToMainActions(ctx, userStates);
     }
 
@@ -55,8 +55,8 @@ bot.on('message:text', async (ctx) => {
         } else if (userState.stage === 'awaiting_admin_username' || userState.stage === 'awaiting_admin_password') {
             await handleAdminCredentials(ctx, userStates);
         } else if (userState.stage === 'admin_logged_in') {
-            if (message === 'Exit') {
-                await ctx.reply("Logged out of admin panel.");
+            if (message === 'Chiqish') {
+                await ctx.reply("Admin paneldan chiqildi.");
                 userStates[ctx.chat.id] = null;
                 await resetToMainActions(ctx, userStates);
             } else {
@@ -80,15 +80,15 @@ bot.on('message:text', async (ctx) => {
             await handleBookingManagement(ctx, userStates);
         }
     } else {
-        if (message === 'View My Upcoming Bookings') {
+        if (message === 'Kelgusi Uchrashuvlarimni Ko‘rish') {
             await handleViewBookings(ctx, userStates);
-        } else if (message === 'Book an Appointment') {
+        } else if (message === 'Uchrashuvni Bron Qilish') {
             const dates = getUpcomingDates();
             const dateButtons = dates.map(date => [{ text: date.display }]);
 
-            await ctx.reply('Please choose an appointment date:', {
+            await ctx.reply('Iltimos, uchrashuv sanasini tanlang:', {
                 reply_markup: {
-                    keyboard: [...dateButtons, [{ text: 'Start from Zero' }]], // Added "Start from Zero" button
+                    keyboard: [...dateButtons, [{ text: 'Boshidan boshlash' }]], // Added "Start from Zero" button
                     resize_keyboard: true,
                     one_time_keyboard: true,
                 },
