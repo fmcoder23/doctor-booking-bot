@@ -8,25 +8,29 @@ datasource db {
 }
 
 model User {
-  id               String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   fullname         String
-  telegramUsername String @unique
+  telegramUsername String   @unique
   phone            String
   telegramId       BigInt
 
   bookings Booking[]
 
   createdAt DateTime @default(now())
+
+  @@index([telegramUsername]) // Index on telegramUsername for faster lookups
 }
 
 model Booking {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-
-  userId String @db.Uuid
-  user   User   @relation(references: [id], fields: [userId], onDelete: Cascade, onUpdate: NoAction)
+  id     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId String   @db.Uuid
+  user   User     @relation(references: [id], fields: [userId], onDelete: Cascade, onUpdate: NoAction)
 
   date   DateTime
   status Status   @default(PENDING)
+
+  @@index([userId])  // Index on userId for faster querying by user
+  @@index([date])    // Index on date for efficient date-based queries
 }
 
 enum Status {
