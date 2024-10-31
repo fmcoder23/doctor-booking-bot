@@ -39,42 +39,63 @@ const getUpcomingDates = () => {
 };
 
 // Tashkent vaqt zonasida tanlangan sana uchun mavjud vaqt oralig‘ini olish funksiyasi
-const getAvailableSlots = async (date, prisma) => {
-    const selectedDate = parseDate(date);
+// Adjusted getAvailableSlots function to show only available slots for the selected date
+const getAvailableSlots = async (selectedDate, prisma) => {
+    // Parse the selected date in 'dd.MM.yyyy' format in the Tashkent timezone
+    const dateStart = DateTime.fromFormat(selectedDate, 'dd.MM.yyyy', { zone: 'Asia/Tashkent' }).startOf('day');
+    const dateEnd = dateStart.endOf('day');
 
-    if (!selectedDate.isValid) {
-        console.error("Mavjud vaqt oralig'i uchun noto‘g‘ri sana kiritildi:", date);
-        throw new Error("Noto‘g‘ri sana formati. Iltimos, 'dd.MM.yyyy' formatida sanani kiriting.");
+    if (!dateStart.isValid || !dateEnd.isValid) {
+        console.error("Invalid selectedDate:", selectedDate);
+        throw new Error("Invalid date format. Please select a valid date.");
     }
 
-    const today = getTashkentDateTime();
-    const isToday = selectedDate.hasSame(today, 'day'); // Tanlangan sana bugun ekanligini tekshirish
+    // Get the current date and time in Tashkent timezone
+    const now = DateTime.now().setZone('Asia/Tashkent');
 
-    // Tanlangan sana uchun band qilingan vaqt oralig'ini olish
-    const bookedSlots = await prisma.booking.findMany({
-        where: {
-            date: {
-                gte: selectedDate.toJSDate(),
-                lt: selectedDate.plus({ days: 1 }).toJSDate() // Tanlangan kun oxirigacha
-            }
-        },
-        select: { date: true }
-    });
-
-    const bookedHours = bookedSlots.map(slot => getTashkentDateTime(slot.date).hour);
-    const availableSlots = [];
-
-    for (let hour = 8; hour <= 20; hour++) {
-        if (!bookedHours.includes(hour)) {
-            if (isToday && hour > today.hour) {
-                availableSlots.push(`${hour}:00`);
-            } else if (!isToday) {
-                availableSlots.push(`${hour}:00`);
+    // Define available slots in 15-minute intervals from 08:00 to 19:45
+    const slots = [];
+    for (let hour = 8; hour <= 19; hour++) {
+        for (let minute = 0; minute < 60; minute += 15) {
+            const slotTime = DateTime.fromObject({ hour, minute }, { zone: 'Asia/Tashkent' });
+            // Only include slots in the future for today's date
+            if (dateStart.hasSame(now, 'day')) {
+                if (slotTime > now) {
+                    slots.push(slotTime.toFormat('HH:mm'));
+                }
+            } else {
+                slots.push(slotTime.toFormat('HH:mm'));
             }
         }
     }
 
-    return availableSlots;
+    // Fetch booked slots for the selected day in Tashkent timezone
+    const bookedSlots = await prisma.booking.findMany({
+        where: {
+            date: {
+                gte: dateStart.toJSDate(),
+                lt: dateEnd.toJSDate(),
+            },
+            status: 'PENDING'
+        },
+        select: { date: true }
+    });
+
+    // Map booked slots to time strings (e.g., "09:00")
+    const bookedTimes = bookedSlots.map(slot => 
+        DateTime.fromJSDate(slot.date, { zone: 'Asia/Tashkent' }).toFormat('HH:mm')
+    );
+
+    // Filter out booked slots, showing only available ones
+    const availableSlots = slots.filter(slot => !bookedTimes.includes(slot));
+
+    // Return available slots, each marked with a ✅
+    return availableSlots.map(slot => `${slot} ✅`);
 };
+
+
+
+
+
 
 module.exports = { getUpcomingDates, getAvailableSlots, getTashkentDateTime, parseDate };

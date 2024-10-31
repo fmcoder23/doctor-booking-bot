@@ -88,7 +88,7 @@ bot.on('message:text', async (ctx) => {
             const dates = getUpcomingDates();
             const dateButtons = dates.map(date => [{ text: date.display }]);
 
-            await ctx.reply('Iltimos, uchrashuv sanasini tanlang:', {
+            await ctx.reply('Iltimos, uchrashuv sanasini tanlang yoki o\'zingiz kiriting (KK.OO.YYYY):', {
                 reply_markup: {
                     keyboard: [...dateButtons, [{ text: 'Boshidan boshlash' }]], // Added "Start from Zero" button
                     resize_keyboard: true,

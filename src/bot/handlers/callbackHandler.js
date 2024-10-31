@@ -53,39 +53,78 @@ const handleCallbackQuery = async (ctx, userStates) => {
 };
 
 const handleDateSelection = async (ctx, userStates, selectedDate) => {
-    const availableSlots = await getAvailableSlots(selectedDate, prisma);
+    try {
+        const availableSlots = await getAvailableSlots(selectedDate, prisma);
 
-    if (availableSlots.length > 0) {
-        const slotButtons = availableSlots.map(slot => [{ text: slot }]);
-        await ctx.reply('Iltimos, mavjud vaqtni tanlang:', {
+        if (availableSlots.length > 0) {
+            // Create an array of rows with available time slots
+            const slotButtons = [];
+            for (let i = 0; i < availableSlots.length; i += 4) {
+                const row = availableSlots.slice(i, i + 4).map(slot => ({ text: slot }));
+                slotButtons.push(row);
+            }
+
+            // Add a row with "Boshidan Boshlash" button
+            slotButtons.push([{ text: 'Boshidan boshlash' }]);
+
+            // Send available slots to the user
+            await ctx.reply('Iltimos, mavjud vaqtni tanlang:', {
+                reply_markup: {
+                    keyboard: slotButtons,
+                    resize_keyboard: true,
+                    one_time_keyboard: true,
+                },
+            });
+
+            userStates[ctx.chat.id] = { stage: 'awaiting_time', date: selectedDate };
+        } else {
+            // If no slots are available, send a message with action buttons
+            await ctx.reply("Tanlangan sana uchun mavjud vaqt yo'q. Iltimos, boshqa sanani tanlang.", {
+                reply_markup: {
+                    keyboard: [[{ text: 'Boshidan boshlash' }]],
+                    resize_keyboard: true,
+                    one_time_keyboard: true,
+                },
+            });
+
+            // Reset user state as the selection did not proceed
+            userStates[ctx.chat.id] = { stage: 'awaiting_action' };
+        }
+    } catch (error) {
+        console.error("Error in handleDateSelection:", error);
+        await ctx.reply("Xatolik yuz berdi. Iltimos, qayta urinib ko'ring.", {
             reply_markup: {
-                keyboard: [...slotButtons,
-                    [{ text: 'Boshidan boshlash' }]],
-                
+                keyboard: [[{ text: 'Boshidan boshlash' }]],
                 resize_keyboard: true,
                 one_time_keyboard: true,
             },
         });
-        userStates[ctx.chat.id] = { stage: 'awaiting_time', date: selectedDate };
-    } else {
-        await ctx.reply('Tanlangan sana uchun mavjud vaqt yo\'q. Iltimos, boshqa sanani tanlang.');
     }
 };
+
 
 // Handle the time selection and confirm the appointment
 const handleTimeSelection = async (ctx, userStates, selectedTime) => {
     const { date } = userStates[ctx.chat.id];
+    const [time, status] = selectedTime.split(' '); // Separate time from status (✅ or ❌)
 
-    await ctx.reply(`Siz ${date} kuni soat ${selectedTime} vaqtni tanladingiz. Uchrashuvni tasdiqlaysizmi:`, {
+    if (status === '❌') {
+        await ctx.reply("Bu vaqt oralig'i allaqachon band qilingan. Iltimos, boshqa vaqtni tanlang.");
+        return;
+    }
+
+    // Proceed with available time
+    await ctx.reply(`Siz ${date} kuni soat ${time} vaqtni tanladingiz. Uchrashuvni tasdiqlaysizmi:`, {
         reply_markup: {
             keyboard: [
-                [{ text: 'Tasdiqlash' }, { text: 'Bekor qilish' }], [{ text: 'Boshidan boshlash' }]
+                [{ text: 'Tasdiqlash' }, { text: 'Bekor qilish' }],
+                [{ text: 'Boshidan boshlash' }]
             ],
             resize_keyboard: true,
             one_time_keyboard: true,
         }
     });
-    userStates[ctx.chat.id] = { stage: 'confirming', date, time: selectedTime };
+    userStates[ctx.chat.id] = { stage: 'confirming', date, time };
 };
 
 // Confirm or cancel the appointment
