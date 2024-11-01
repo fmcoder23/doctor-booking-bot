@@ -5,11 +5,14 @@ const { handleAdminLogin, handleAdminCredentials, handleAdminActions, viewBookin
 const { getUpcomingDates } = require('../utils/dateUtils');
 const { handleDateSelection, handleTimeSelection, handleConfirmation } = require('./handlers/callbackHandler');
 const { handleBookingConfirmation, handleFinalConfirmation } = require('./handlers/bookingHandler');
+const {scheduleNotifications} = require('../utils/notificationScheduler')
 
-require('../utils/notificationScheduler');
 
 const bot = new Bot(config.token);
 const userStates = {};
+
+scheduleNotifications(bot);
+
 
 bot.api.setMyCommands([
     { command: 'start', description: 'Botni ishga tushirish va ro‘yxatdan o‘tish' },

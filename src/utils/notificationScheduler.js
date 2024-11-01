@@ -1,27 +1,26 @@
 const cron = require('node-cron');
 const { prisma } = require('./connection');
 const { getTashkentDateTime } = require('./dateUtils');
-const { bot } = require('../bot/bot');
 
-// BigInt Telegram IDlarini xavfsiz qayta ishlash uchun yordamchi funksiya
-const sendNotification = async (telegramId, message) => {
+// Helper function to send notifications
+const sendNotification = async (bot, telegramId, message) => {
     try {
-        await bot.api.sendMessage(String(telegramId), message); // BigInt'ni stringga aylantirish
+        await bot.api.sendMessage(String(telegramId), message); // Convert BigInt to string
     } catch (error) {
         console.error("Xabarnoma yuborishda xatolik:", error);
     }
 };
 
-// Foydalanuvchilarga yaqinlashib kelayotgan bandliklar haqida xabarnoma yuborish
-const notifyUpcomingBookings = async () => {
+// Notify users of upcoming bookings
+const notifyUpcomingBookings = async (bot) => {
     const now = getTashkentDateTime();
-    const oneHourLater = now.plus({ hours: 1 });
+    const fifteenMinutesLater = now.plus({ minutes: 15 }); // Change to 15 minutes
 
     const upcomingBookings = await prisma.booking.findMany({
         where: {
             date: {
                 gte: now.toJSDate(),
-                lt: oneHourLater.toJSDate(),
+                lt: fifteenMinutesLater.toJSDate(), // Notify bookings within the next 15 minutes
             },
             status: 'PENDING',
         },
@@ -32,14 +31,16 @@ const notifyUpcomingBookings = async () => {
 
     for (const booking of upcomingBookings) {
         await sendNotification(
+            bot,
             booking.user.telegramId,
-            `Eslatma: Sizning navbatingiz bir soatdan keyin soat ${getTashkentDateTime(booking.date).toFormat('HH:mm')} da boshlanadi.`
+            `Eslatma: Sizning navbatingiz 15 daqiqadan keyin soat ${getTashkentDateTime(booking.date).toFormat('HH:mm')} da boshlanadi.`
         );
     }
 };
 
-// Foydalanuvchilarga bandlik vaqti kelganda xabarnoma yuborish
-const notifyBookingTime = async () => {
+
+// Notify users when it's their booking time
+const notifyBookingTime = async (bot) => {
     const now = getTashkentDateTime();
 
     const currentBookings = await prisma.booking.findMany({
@@ -57,16 +58,19 @@ const notifyBookingTime = async () => {
 
     for (const booking of currentBookings) {
         await sendNotification(
+            bot,
             booking.user.telegramId,
             `Sizning navbatingiz vaqti keldi: soat ${getTashkentDateTime(booking.date).toFormat('HH:mm')}.`
         );
     }
 };
 
-// Har 5 daqiqada vazifalarni bajarish uchun jadval tuzish
-cron.schedule('*/5 * * * *', () => {
-    notifyUpcomingBookings();
-    notifyBookingTime();
-});
+// Schedule tasks every 5 minutes
+const scheduleNotifications = (bot) => {
+    cron.schedule('*/5 * * * *', () => {
+        notifyUpcomingBookings(bot);
+        notifyBookingTime(bot);
+    });
+};
 
-module.exports = { notifyUpcomingBookings, notifyBookingTime };
+module.exports = { scheduleNotifications };
